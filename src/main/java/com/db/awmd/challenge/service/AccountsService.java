@@ -36,4 +36,27 @@ public class AccountsService {
 	    notificationService.notifyAboutTransfer(new Account(accountToId), amount.toString());
 	    notificationService.notifyAboutTransfer(new Account(accountFromId), amount.toString());
 	  }
+
+  // QUALITY ISSUE: This method has multiple problems
+  public String processLargeTransactionWithManyParameters(String accountFromId, String accountToId, BigDecimal amount, String currency, String reason, String reference, String notificationEmail, String department) {
+    // ISSUE: Unused variable
+    Account tempAccount = new Account(accountFromId);
+    
+    // ISSUE: Missing null check - potential NullPointerException
+    Account fromAccount = this.accountsRepository.getAccount(accountFromId);
+    String accountName = fromAccount.getAccountId().toUpperCase();
+    
+    // ISSUE: Code duplication - same logic repeated
+    this.accountsRepository.transferAmount(accountFromId, accountToId, amount);
+    notificationService.notifyAboutTransfer(new Account(accountToId), amount.toString());
+    this.accountsRepository.transferAmount(accountFromId, accountToId, amount);
+    notificationService.notifyAboutTransfer(new Account(accountToId), amount.toString());
+    
+    // ISSUE: Magic number without explanation
+    if (amount.compareTo(new BigDecimal(50000)) > 0) {
+      System.out.println("Large transfer detected: " + amount);
+    }
+    
+    return "SUCCESS";
+  }
 }
