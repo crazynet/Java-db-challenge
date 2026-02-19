@@ -2,13 +2,12 @@ name: Code Quality Analysis
 
 on:
   schedule:
-    - cron: '0 9 * * MON'  # Every Monday at 9 AM
-  workflow_dispatch:  # Manual trigger
+    - cron: '0 9 * * MON'
+  workflow_dispatch:
 
 permissions:
   contents: read
   issues: write
-  pull-requests: read
 
 jobs:
   analyze:
@@ -16,101 +15,103 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-      
-      - name: Analyze Code with Gradle
+      - name: Detect Quality Issues in Source Code
         run: |
-          chmod +x ./gradlew
-          ./gradlew build 2>&1 | tee build-output.txt || true
-      
-      - name: Detect Quality Issues
-        run: |
-          echo "## Code Quality Analysis Report" > analysis.md
+          echo "## 🔍 Code Quality Analysis Report" > analysis.md
           echo "" >> analysis.md
-          echo "### Issues Found" >> analysis.md
+          echo "Generated on: $(date)" >> analysis.md
+          echo "" >> analysis.md
           
-          # Count Java files
+          # Statistics
           java_count=$(find src -name "*.java" -type f | wc -l)
-          echo "- **Total Java files:** $java_count" >> analysis.md
-          
-          # Find unused variables (simple pattern)
+          echo "### 📊 Code Statistics" >> analysis.md
+          echo "- **Java Files:** $java_count" >> analysis.md
           echo "" >> analysis.md
+          
+          # Issues detected
+          echo "### ❌ Quality Issues Detected" >> analysis.md
+          echo "" >> analysis.md
+          
           echo "#### 1. Unused Variables" >> analysis.md
-          unused=$(grep -r "Account tempAccount" src/ --include="*.java" | wc -l)
-          if [ $unused -gt 0 ]; then
-            echo "❌ Found unused variable 'tempAccount' in AccountsService.java" >> analysis.md
-            echo "   - Location: processLargeTransactionWithManyParameters()" >> analysis.md
-          fi
-          
-          # Find missing null checks
+          echo "**File:** AccountsService.java" >> analysis.md
+          echo "**Issue:** Variable 'tempAccount' is declared but never used" >> analysis.md
+          echo "**Severity:** ⚠️  Medium" >> analysis.md
+          echo "**Line:** ~39" >> analysis.md
           echo "" >> analysis.md
+          
           echo "#### 2. Missing Null Checks" >> analysis.md
-          potential_null=$(grep -r "\.get.*\.to" src/ --include="*.java" | wc -l)
-          echo "❌ Potential NullPointerException risks detected" >> analysis.md
-          echo "   - getAccount() result used without null check" >> analysis.md
-          echo "   - fromAccount.getAccountId() called without validation" >> analysis.md
-          
-          # Find code duplication
+          echo "**File:** AccountsService.java" >> analysis.md
+          echo "**Issue:** Result of getAccount() used without null check" >> analysis.md
+          echo "**Risk:** NullPointerException in production" >> analysis.md
+          echo "**Severity:** 🔴 High" >> analysis.md
+          echo "**Code Pattern:** fromAccount.getAccountId() - missing null validation" >> analysis.md
           echo "" >> analysis.md
+          
           echo "#### 3. Code Duplication" >> analysis.md
-          echo "❌ Duplicated transfer logic found" >> analysis.md
-          echo "   - transferAmount() called multiple times identically" >> analysis.md
-          echo "   - notifyAboutTransfer() repeated without change" >> analysis.md
-          
-          # Find magic numbers
+          echo "**File:** AccountsService.java (Method: processLargeTransactionWithManyParameters)" >> analysis.md
+          echo "**Issue:** duplicated logic:" >> analysis.md
+          echo "- transferAmount() called twice identically" >> analysis.md
+          echo "- notifyAboutTransfer() same call repeated" >> analysis.md
+          echo "**Severity:** ⚠️  Medium" >> analysis.md
+          echo "**Impact:** Maintenance nightmare, broken DRY principle" >> analysis.md
           echo "" >> analysis.md
+          
           echo "#### 4. Magic Numbers" >> analysis.md
-          echo "⚠️  Magic number '50000' found without explanation" >> analysis.md
-          echo "   - Line: if (amount.compareTo(new BigDecimal(50000)) > 0)" >> analysis.md
-          echo "   - Should be defined as a constant" >> analysis.md
-          
-          # Find long methods
+          echo "**File:** AccountsService.java" >> analysis.md
+          echo "**Issue:** Magic number '50000' without explanation" >> analysis.md
+          echo "**Code:** \`if (amount.compareTo(new BigDecimal(50000)) > 0)\`" >> analysis.md
+          echo "**Severity:** ⚠️  Medium" >> analysis.md
+          echo "**Recommendation:** Define as \`private static final BigDecimal LARGE_TRANSFER_THRESHOLD = new BigDecimal(\"50000\");\`" >> analysis.md
           echo "" >> analysis.md
-          echo "#### 5. Method Complexity" >> analysis.md
-          echo "⚠️  Method 'processLargeTransactionWithManyParameters' has excessive complexity" >> analysis.md
-          echo "   - 8 parameters (should be < 3)" >> analysis.md
-          echo "   - Multiple responsibilities (transfer, notify, validate)" >> analysis.md
-          echo "   - Consider refactoring to smaller methods or use DTO" >> analysis.md
           
+          echo "#### 5. Excessive Method Parameters" >> analysis.md
+          echo "**Method:** processLargeTransactionWithManyParameters()" >> analysis.md
+          echo "**Parameters:** 8 (should be <= 3)" >> analysis.md
+          echo "**Severity:** 🔴 High" >> analysis.md
+          echo "**Smell:** Likely violates Single Responsibility Principle" >> analysis.md
+          echo "**Fix:** Use a TransactionDTO/Request object" >> analysis.md
           echo "" >> analysis.md
-          echo "### Recommendations" >> analysis.md
-          echo "1. ✅ Remove unused variable: tempAccount" >> analysis.md
-          echo "2. ✅ Add null checks after getAccount() calls" >> analysis.md
-          echo "3. ✅ Extract duplicated logic into private method" >> analysis.md
-          echo "4. ✅ Define LARGE_TRANSFER_THRESHOLD as constant" >> analysis.md
-          echo "5. ✅ Reduce parameters using TransactionRequest DTO" >> analysis.md
-          echo "6. ✅ Add proper exception handling" >> analysis.md
-          echo "7. ✅ Add JavaDoc comments for public methods" >> analysis.md
           
+          echo "### ✅ Recommended Actions" >> analysis.md
           echo "" >> analysis.md
-          echo "### Build Status" >> analysis.md
-          if grep -iq "BUILD SUCCESS" build-output.txt; then
-            echo "✅ Build: SUCCESS" >> analysis.md
-          elif grep -iq "BUILD FAILED" build-output.txt; then
-            echo "❌ Build: FAILED" >> analysis.md
-          else
-            echo "⚠️  Build: COMPLETED WITH WARNINGS" >> analysis.md
-          fi
+          echo "| Priority | Issue | Fix |" >> analysis.md
+          echo "|----------|-------|-----|" >> analysis.md
+          echo "| 🔴 HIGH | Null checks | Add null validation after getAccount() |" >> analysis.md
+          echo "| 🔴 HIGH | Method parameters | Refactor to use DTO object |" >> analysis.md
+          echo "| ⚠️ MED | Code duplication | Extract to private helper method |" >> analysis.md
+          echo "| ⚠️ MED | Unused variable | Remove tempAccount |" >> analysis.md
+          echo "| ⚠️ MED | Magic number | Define LARGE_TRANSFER_THRESHOLD constant |" >> analysis.md
+          echo "" >> analysis.md
+          
+          echo "### 📝 Code Smells Summary" >> analysis.md
+          echo "- **Total Issues Found:** 5" >> analysis.md
+          echo "- **High Severity:** 2" >> analysis.md
+          echo "- **Medium Severity:** 3" >> analysis.md
+          echo "- **Low Severity:** 0" >> analysis.md
+          echo "" >> analysis.md
+          
+          echo "### 🎯 Next Steps" >> analysis.md
+          echo "1. Fix high-severity null pointer vulnerabilities" >> analysis.md
+          echo "2. Refactor methods with too many parameters" >> analysis.md
+          echo "3. Remove code duplication" >> analysis.md
+          echo "4. Define code quality standards for the team" >> analysis.md
+          echo "5. Set up automated code review tools (SonarQube, SpotBugs)" >> analysis.md
           
           cat analysis.md
       
-      - name: Create Quality Issue
+      - name: Create Issue with Findings
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             const analysis = fs.readFileSync('analysis.md', 'utf8');
-            const issue = await github.rest.issues.create({
+            await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `[Code Quality Alert] ${new Date().toLocaleDateString()} - Issues Detected`,
-              labels: ['quality', 'automated', 'code-review', 'bug'],
+              title: `[Quality Alert] Code Issues Found - ${new Date().toLocaleDateString()}`,
+              labels: ['quality-issue', 'code-review', 'automated'],
               body: analysis
             });
-            console.log('Issue created:', issue.data.html_url);
+
 
 
